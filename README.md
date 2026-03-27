@@ -17,6 +17,7 @@ Then, access it.
 "
 
 You can also create a separate object that will reference the created class object.
+To create objects, DO NOT USE NEW
 
 " 
   private SuperClasss SuperClass = Program.SingletoneInstance.GetInstance<SuperClasss>();
