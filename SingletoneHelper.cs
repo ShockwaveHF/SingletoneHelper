@@ -4,141 +4,107 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-public class SingletoneHelper
+ public class SingletonHelper
     {
-        private static SingletoneInstance singletoneHelper;
+        private static SingletonInstance _instance;
+        private static readonly object _lock = new object();
 
-        public static SingletoneInstance Initialize
+        // Свойство для доступа к менеджеру (Thread-safe)
+        public static SingletonInstance Instance
         {
             get
             {
-                if (singletoneHelper == null)
+                if (_instance == null)
                 {
-                    singletoneHelper = new SingletoneInstance();
+                    lock (_lock)
+                    {
+                        _instance = new SingletonInstance();
+                    }
                 }
-                return singletoneHelper;
+                return _instance;
             }
         }
 
-        public class SingletoneInstance
+        public class SingletonInstance
         {
-            private Dictionary<string, Dictionary<int, object>> _instancesFactory = new Dictionary<string, Dictionary<int, object>>();
+
+            // Хранилище для фабрики: (Тип, ID) -> Объект
+            private readonly ConcurrentDictionary<(Type type, int id), object> _factory = new ConcurrentDictionary<(Type, int), object>();
+            // Хранилище для одиночек: Тип -> Объект
+            private readonly ConcurrentDictionary<Type, object> _singletons = new ConcurrentDictionary<Type, object>();
+
+            internal SingletonInstance() { }
+
+            public event Action<object> OnInstanceGet;
+
+            // Делегаты и события (теперь передаем экземпляр T)
+            public event Action<object> OnObjectCreated;
+            public event Action<object> OnObjectRemoved;
+
+            public void ClearAll()
+            {
+                _singletons.Clear();
+                _factory.Clear();
+            }
 
             /// <summary>
-            /// A singleton doesn't have a specific ID, so use it only if you're sure you won't need other instances.
+            /// Создает или возвращает экземпляр типа T по конкретному ID
             /// </summary>
-            private Dictionary<Type, object> _instancesSingletone = new Dictionary<Type, object>();
-
-            public delegate void OnInstanceGet<T>(T obj);
-
-            public delegate void OnObjectCreate<T>(T obj);
-
-            public delegate void OnObjectRemoved<T>(T obj);
-
-            public event OnInstanceGet<Type> OnGetInstanceEvent;
-
-            public event OnObjectCreate<Type> OnObjectCreateEvent;
-
-            public event OnObjectRemoved<Type> OnObjectRemovedEvent;
-
-            private void ClearSingletone()
+            public T GetFromFactory<T>(int id) where T : class, new()
             {
-                _instancesSingletone.Clear();
-            }
+                (Type, int id) key = (typeof(T), id);
 
-            public void ClearFactory()
-            {
-                _instancesFactory.Clear();
-            }
-
-            public T CreateInstance<T>() where T : new()
-            {
-                Type type = typeof(T);
-
-                if (_instancesSingletone.ContainsKey(type) == false)
+                T instance = (T)_factory.GetOrAdd(key, k =>
                 {
-                    ClassMaker<T> maker1 = new ClassMaker<T>();
-                    _instancesSingletone[type] = maker1;
-                    OnObjectCreateEvent?.Invoke(type);
-                }
-                OnGetInstanceEvent?.Invoke(type);
+                    T newObj = new T();
+                    OnObjectCreated?.Invoke(newObj);
+                    return newObj;
+                });
 
-                ClassMaker<T> maker = (ClassMaker<T>)_instancesSingletone[type];
-                T instance = maker.GetInstance();
+                OnInstanceGet?.Invoke(instance);
                 return instance;
             }
 
-            public T CreateInstance<T>(int id) where T : new()
+            /// <summary>
+            /// Создает или возвращает единственный экземпляр типа T
+            /// </summary>
+            public T GetSingleton<T>() where T : class, new()
             {
-                string typeName = typeof(T).FullName;
+                Type type = typeof(T);
 
-                if (!_instancesFactory.ContainsKey(typeName))
+                // GetOrAdd атомарно проверяет наличие или создает новый объект
+                T instance = (T)_singletons.GetOrAdd(type, t =>
                 {
-                    _instancesFactory[typeName] = new Dictionary<int, object>();
-                }
+                    T newObj = new T();
+                    OnObjectCreated?.Invoke(newObj);
+                    return newObj;
+                });
 
-                if (_instancesFactory[typeName].ContainsKey(id))
-                {
-                    if (_instancesFactory[typeName][id] is T existingInstance)
-                    {
-                        OnGetInstanceEvent?.Invoke(typeof(T));
-                        return existingInstance;
-                    }
-                }
-
-                T instance = new T();
-                _instancesFactory[typeName][id] = instance;
-                OnObjectCreateEvent?.Invoke(typeof(T));
+                OnInstanceGet?.Invoke(instance);
                 return instance;
             }
 
-            public void RemoveInstance<T>() where T : new()
+            public void RemoveFromFactory<T>(int id) where T : class
             {
-                Type type = typeof(T);
-                if (_instancesSingletone.ContainsKey(type) == true)
+                (Type, int id) key = (typeof(T), id);
+                if (_factory.TryRemove(key, out object removed))
                 {
-                    _instancesSingletone.Remove(type);
-                    OnObjectRemovedEvent?.Invoke(type);
-                }
-            }
-
-            public void RemoveInstance<T>(int id)
-            {
-                string typeName = typeof(T).FullName;
-
-                if (_instancesFactory.ContainsKey(typeName))
-                {
-                    if (_instancesFactory[typeName].ContainsKey(id))
-                    {
-                        Type type = _instancesFactory[typeName][id].GetType();
-                        _instancesFactory[typeName].Remove(id);
-                        OnObjectRemovedEvent?.Invoke(type);
-                    }
-                    else
-                    {
-                        Console.WriteLine($"Object {typeName} | {id} not found.");
-                    }
+                    OnObjectRemoved?.Invoke(removed);
                 }
                 else
                 {
-                    Console.WriteLine($"Object {typeName} | {id} not found.");
+                    Console.WriteLine($"[Factory] Object {typeof(T).Name} with ID {id} not found.");
                 }
             }
 
-            private class ClassMaker<T> where T : new()
+            public void RemoveSingleton<T>() where T : class
             {
-                private T _instance;
-
-                public T GetInstance()
+                if (_singletons.TryRemove(typeof(T), out object removed))
                 {
-                    if (_instance == null)
-                    {
-                        _instance = new T();
-                    }
-
-                    return _instance;
+                    OnObjectRemoved?.Invoke(removed);
                 }
             }
         }
+    }
     }
 }
