@@ -9,19 +9,19 @@ A: It's slow, and it also automatically regulates the object's state.
 Q: How do I use it?
 A: Now just use the instance created in SingletoneHelper:
  
-* SingletonHelper.Instance.GetSingleton<FooClass>().Bar();
+* SingletonHelper.Instance.GetSingleton <FooClass> ().Bar();
 
 
 You can also create a separate object that will reference the created class object.
 To create objects
  
-*  private FooClass fooClass = SingletonHelper.Instance.GetSingleton<FooClass>();
+*  private FooClass fooClass = SingletonHelper.Instance.GetSingleton <FooClass> ();
 *  fooClass.Bar();
 
 You can also use a unique ID or rewrite the code for Enum
 
-* SingletonHelper.Instance.GetSingleton<FooClass>(1);
-* SingletonHelper.Instance.GetSingleton<FooClass>(2);
+* SingletonHelper.Instance.GetSingleton <FooClass> (1);
+* SingletonHelper.Instance.GetSingleton <FooClass> (2);
 
 You can also receive notifications about new/received/deleted objects using events
 
