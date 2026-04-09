@@ -7,29 +7,28 @@ Q: Why not use lazy<>?
 A: It's slow, and it also automatically regulates the object's state.
 
 Q: How do I use it?
-A: Add the class to the project, then create a global point:
-"
-  public static SingletoneHelper SingletoneInstance = new SingletoneHelper(); 
-"
-Then, access it.
-" 
-  Program.SingletoneInstance.GetInstance<SuperClasses>().Add();
-"
+A: Now just use the instance created in SingletoneHelper:
+ 
+* SingletonHelper.Instance.GetSingleton<FooClass>().Bar();
+
 
 You can also create a separate object that will reference the created class object.
-To create objects, DO NOT USE NEW
+To create objects
+ 
+*  private FooClass fooClass = SingletonHelper.Instance.GetSingleton<FooClass>();
+*  fooClass.Bar();
 
-" 
-  private SuperClasss SuperClass = Program.SingletoneInstance.GetInstance<SuperClasss>();
-  SuperClass.Add();
-"
+You can also use a unique ID or rewrite the code for Enum
+
+* SingletonHelper.Instance.GetSingleton<FooClass>(1);
+* SingletonHelper.Instance.GetSingleton<FooClass>(2);
 
 You can also receive notifications about new/received/deleted objects using events
-" 
-  Program.SingletoneInstance.OnObjectCreateEvent += SingletoneInstance_OnObjectCreateEvent;
-  Program.SingletoneInstance.OnGetInstanceEvent += SingletoneInstance_OnGetInstanceEvent; 
-  Program.SingletoneInstance.OnObjectRemovedEvent += SingletoneInstance_OnObjectRemovedEvent; 
-"
+
+*  Program.SingletoneInstance.OnObjectCreateEvent += SingletoneInstance_OnObjectCreateEvent;
+*  Program.SingletoneInstance.OnGetInstanceEvent += SingletoneInstance_OnGetInstanceEvent; 
+*  Program.SingletoneInstance.OnObjectRemovedEvent += SingletoneInstance_OnObjectRemovedEvent; 
+
 
 
 Q: Singleton is an anti-pattern.
